@@ -1,0 +1,1 @@
+{"version":1,"contracts":[{"id":"ccvvmt9q7u9dc","package_name":"p2p_escrow","contract_name":"P2PEscrow","module_path":"p2p_escrow::p2p_escrow::P2PEscrow","artifacts":{"sierra":"p2p_escrow_P2PEscrow.contract_class.json","casm":null}}]}
