@@ -1,0 +1,82 @@
+# Scarb build artifacts
+target/
+Scarb.lock
+
+# Cairo artifacts
+*.sierra
+*.casm
+*.json
+
+# Starknet artifacts
+.snfoundry_cache/
+artifacts/
+cache/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Node.js (if using JS tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (if using Python tooling)
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Documentation build
+docs/_build/
+
+# Local development
+.local/
+*.local
+
+# Starknet account files (sensitive)
+accounts.json
+keystore/
+wallets/
+
+# Deployment artifacts (may contain sensitive info)
+deployments/
+contracts.json
+
+# Test artifacts
+test-results/
+.nyc_output/ 

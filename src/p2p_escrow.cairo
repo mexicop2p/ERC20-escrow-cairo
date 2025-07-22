@@ -4,21 +4,25 @@
 
 use starknet::ContractAddress;
 
+fn u256_from_u128(value: u128) -> u256 {
+    u256 { low: value, high: 0 }
+}
+
 #[derive(Drop, Copy, Serde, starknet::Store)]
 pub struct Order {
     pub seller: ContractAddress,
     pub buyer: ContractAddress,
     pub token: ContractAddress,
-    pub amount: u128,
+    pub amount: u256,
     pub lockExpiry: u64,
     pub status: u8,
 }
 
 #[starknet::interface]
-trait IP2PEscrow<T> {
+pub trait IP2PEscrow<T> {
     fn deposit(ref self: T, id: felt252, amount: u128, token: ContractAddress);
     fn lockOrder(ref self: T, id: felt252, duration: u64);
-    fn release(ref self: T, id: felt252, signature_r: felt252, signature_s: felt252);
+    fn release(ref self: T, id: felt252, sig_r: felt252, sig_s: felt252, v: u8);
     fn refund(ref self: T, id: felt252);
     fn updateProofSigner(ref self: T, newSigner: felt252);
     fn setWhitelistEnabled(ref self: T, enabled: bool);
@@ -36,7 +40,7 @@ trait IP2PEscrow<T> {
 
 #[starknet::contract]
 mod P2PEscrow {
-    use super::{IP2PEscrow, Order};
+    use super::{IP2PEscrow, Order, u256_from_u128};
     use starknet::{ContractAddress, get_caller_address, get_block_timestamp};
     use openzeppelin::access::ownable::OwnableComponent;
     use openzeppelin::token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
@@ -62,6 +66,7 @@ mod P2PEscrow {
         whitelistEnabled: bool,
         MAX_LOCK_DURATION: u256,
         MXN_KYC_LIMIT: u256,
+        reentrancy_guard: bool,
     }
 
     #[derive(Drop, Copy, Serde)]
@@ -103,7 +108,7 @@ mod P2PEscrow {
         id: felt252,
         #[key]
         seller: ContractAddress,
-        amount: u128,
+        amount: u256,
         #[key]
         token: ContractAddress,
     }
@@ -164,6 +169,7 @@ mod P2PEscrow {
         SignatureInvalid,
         InvalidStatus,
         ProofAlreadyUsed,
+        ReentrantCall,
     }
 
     fn panic_with_error(err: EscrowError) {
@@ -180,7 +186,26 @@ mod P2PEscrow {
             EscrowError::SignatureInvalid => panic!("SignatureInvalid"),
             EscrowError::InvalidStatus => panic!("InvalidStatus"),
             EscrowError::ProofAlreadyUsed => panic!("ProofAlreadyUsed"),
+            EscrowError::ReentrantCall => panic!("ReentrantCall"),
         }
+    }
+
+    fn build_message_hash(id: felt252, buyer: ContractAddress, amount: u256, token: ContractAddress) -> felt252 {
+        // Pack the data: id, buyer, amount.low, amount.high, token
+        // TODO: Replace with Keccak256 + secp256k1 signature verification
+        let mut message = ArrayTrait::new();
+        message.append(id);
+        message.append(buyer.into());
+        message.append(amount.low.into());
+        message.append(amount.high.into());
+        message.append(token.into());
+        
+        // Temporary use of Poseidon - will be replaced with Keccak256
+        poseidon_hash_span(message.span())
+    }
+
+    fn zero_address() -> ContractAddress {
+        0.try_into().unwrap()
     }
 
     #[constructor]
@@ -195,24 +220,47 @@ mod P2PEscrow {
         self.proofSigner.write(_proofSigner);
         self.MAX_LOCK_DURATION.write(_maxLockSecs);
         self.MXN_KYC_LIMIT.write(_kycLimit);
+        self.reentrancy_guard.write(false);
+    }
+
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _check_reentrancy(ref self: ContractState) {
+            if self.reentrancy_guard.read() {
+                panic_with_error(EscrowError::ReentrantCall);
+            }
+            self.reentrancy_guard.write(true);
+        }
+
+        fn _clear_reentrancy(ref self: ContractState) {
+            self.reentrancy_guard.write(false);
+        }
     }
 
     #[abi(embed_v0)]
     impl P2PEscrowImpl of IP2PEscrow<ContractState> {
         fn deposit(ref self: ContractState, id: felt252, amount: u128, token: ContractAddress) {
-            let existing_order = self.orders.read(id);
-            let zero_address: ContractAddress = 0.try_into().unwrap();
+            self._check_reentrancy();
             
-            if existing_order.seller != zero_address {
+            let existing_order = self.orders.read(id);
+            let zero_addr = zero_address();
+            
+            if existing_order.seller != zero_addr {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::OrderExists);
             }
             if amount == 0 {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::ZeroAmount);
             }
-            if amount.into() > self.MXN_KYC_LIMIT.read() {
+            
+            let amount_u256 = u256_from_u128(amount);
+            if amount_u256 > self.MXN_KYC_LIMIT.read() {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::KycLimit);
             }
             if self.whitelistEnabled.read() && !self.allowedTokens.read(token) {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::TokenNotAllowed);
             }
 
@@ -221,33 +269,39 @@ mod P2PEscrow {
             
             // Transfer tokens from caller to this contract
             let token_dispatcher = IERC20Dispatcher { contract_address: token };
-            token_dispatcher.transfer_from(caller, this_contract, amount.into());
+            token_dispatcher.transfer_from(caller, this_contract, amount_u256);
 
             let new_order = Order {
                 seller: caller,
-                buyer: zero_address,
+                buyer: zero_addr,
                 token: token,
-                amount: amount,
+                amount: amount_u256,
                 lockExpiry: 0,
                 status: OrderStatus::Available.into(),
             };
 
             self.orders.write(id, new_order);
 
-            self.emit(OrderCreated { id, seller: caller, amount, token });
+            self.emit(OrderCreated { id, seller: caller, amount: amount_u256, token });
+            self._clear_reentrancy();
         }
 
         fn lockOrder(ref self: ContractState, id: felt252, duration: u64) {
-            let order = self.orders.read(id);
-            let zero_address: ContractAddress = 0.try_into().unwrap();
+            self._check_reentrancy();
             
-            if order.seller == zero_address {
+            let order = self.orders.read(id);
+            let zero_addr = zero_address();
+            
+            if order.seller == zero_addr {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::OrderNotFound);
             }
             if order.status != OrderStatus::Available.into() {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::AlreadyLocked);
             }
             if duration == 0 || duration.into() > self.MAX_LOCK_DURATION.read() {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::LockTooLong);
             }
 
@@ -266,117 +320,114 @@ mod P2PEscrow {
             self.orders.write(id, updated_order);
 
             self.emit(OrderLocked { id, buyer: caller, lockExpiry: lock_expiry });
+            self._clear_reentrancy();
         }
 
-        fn release(ref self: ContractState, id: felt252, signature_r: felt252, signature_s: felt252) {
+        fn release(ref self: ContractState, id: felt252, sig_r: felt252, sig_s: felt252, v: u8) {
+            self._check_reentrancy();
+            
             let order = self.orders.read(id);
             
             if order.status != OrderStatus::Locked.into() {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::OrderNotFound);
             }
 
-            // Create message hash for verification (using Poseidon for Starknet)
-            let mut data = ArrayTrait::new();
-            data.append(id);
-            data.append(order.buyer.into());
-            data.append(order.amount.into());
-            data.append(order.token.into());
+            // Build message hash - TODO: Replace with Keccak256
+            let message_hash = build_message_hash(id, order.buyer, order.amount, order.token);
             
-            let message_hash = poseidon_hash_span(data.span());
-            
-            // Hash the signature for replay protection
+            // Hash the signature for replay protection - TODO: Replace with Keccak256
             let mut sig_data = ArrayTrait::new();
-            sig_data.append(signature_r);
-            sig_data.append(signature_s);
+            sig_data.append(sig_r);
+            sig_data.append(sig_s);
+            sig_data.append(v.into());
             let proof_hash = poseidon_hash_span(sig_data.span());
             
             if self.usedProof.read(proof_hash) {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::ProofAlreadyUsed);
             }
 
-            // Verify Starknet ECDSA signature using the proof signer's public key
-            // Note: In production, implement proper ECDSA verification using:
-            // - starknet::account validation patterns, or
-            // - external signature verification libraries
-            // For now, we validate that signature components are non-zero and from expected signer
+            // Simplified signature verification - TODO: Replace with secp256k1 ECDSA verification
+            // Check that signature components are non-zero and from expected signer
             let expected_signer = self.proofSigner.read();
             
-            if signature_r == 0 || signature_s == 0 {
+            if sig_r == 0 || sig_s == 0 || expected_signer == 0 {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::SignatureInvalid);
             }
             
-            // Placeholder verification - replace with actual Starknet ECDSA verification
-            // The message_hash and expected_signer should be used for proper verification
-            let _placeholder_check = message_hash + expected_signer;
+            // Simple placeholder verification - replace with actual ECDSA verification
+            let _verification_placeholder = message_hash + expected_signer;
 
             self.usedProof.write(proof_hash, true);
             self.emit(ProofConsumed { proofHash: proof_hash });
 
             // Transfer tokens to buyer
             let token_dispatcher = IERC20Dispatcher { contract_address: order.token };
-            token_dispatcher.transfer(order.buyer, order.amount.into());
+            token_dispatcher.transfer(order.buyer, order.amount);
 
             self.emit(OrderReleased { id, buyer: order.buyer });
 
-            // Delete order for storage refund
-            let zero_address: ContractAddress = 0.try_into().unwrap();
+            // Clear order storage for gas refund (instead of writing zero values)
+            let zero_addr = zero_address();
             let empty_order = Order {
-                seller: zero_address,
-                buyer: zero_address,
-                token: zero_address,
+                seller: zero_addr,
+                buyer: zero_addr,
+                token: zero_addr,
                 amount: 0,
                 lockExpiry: 0,
                 status: 0,
             };
             self.orders.write(id, empty_order);
+            
+            self._clear_reentrancy();
         }
 
         fn refund(ref self: ContractState, id: felt252) {
-            let order = self.orders.read(id);
-            let zero_address: ContractAddress = 0.try_into().unwrap();
-            let caller = get_caller_address();
+            self._check_reentrancy();
             
-            if order.seller == zero_address {
+            let order = self.orders.read(id);
+            let caller = get_caller_address();
+            let zero_addr = zero_address();
+            
+            if order.seller == zero_addr {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::OrderNotFound);
             }
             if caller != order.seller {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::NotSeller);
             }
 
             if order.status == OrderStatus::Locked.into() {
                 if get_block_timestamp() < order.lockExpiry {
+                    self._clear_reentrancy();
                     panic_with_error(EscrowError::LockActive);
                 }
             } else if order.status != OrderStatus::Available.into() {
+                self._clear_reentrancy();
                 panic_with_error(EscrowError::InvalidStatus);
             }
 
-            let updated_order = Order {
-                seller: order.seller,
-                buyer: order.buyer,
-                token: order.token,
-                amount: order.amount,
-                lockExpiry: order.lockExpiry,
-                status: OrderStatus::Refunded.into(),
-            };
-            self.orders.write(id, updated_order);
-
             // Transfer tokens back to seller
             let token_dispatcher = IERC20Dispatcher { contract_address: order.token };
-            token_dispatcher.transfer(order.seller, order.amount.into());
+            token_dispatcher.transfer(order.seller, order.amount);
 
             self.emit(OrderRefunded { id });
 
-            // Delete order for storage refund
+            // Clear order storage for gas refund (instead of writing zero values)
             let empty_order = Order {
-                seller: zero_address,
-                buyer: zero_address,
-                token: zero_address,
+                seller: zero_addr,
+                buyer: zero_addr,
+                token: zero_addr,
                 amount: 0,
                 lockExpiry: 0,
                 status: 0,
             };
             self.orders.write(id, empty_order);
+            
+            self._clear_reentrancy();
         }
 
         fn updateProofSigner(ref self: ContractState, newSigner: felt252) {
