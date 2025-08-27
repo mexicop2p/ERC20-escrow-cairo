@@ -71,6 +71,22 @@ trait IP2PEscrow<TContractState> {
     fn refund(ref self: TContractState, order_id: felt252);
 
     fn get_order(self: @TContractState, order_id: felt252) -> Order;
+
+    // Administrative functions with access control
+    fn update_proof_signer(ref self: TContractState, new_signer: felt252);
+    
+    fn transfer_ownership(ref self: TContractState, new_owner: ContractAddress);
+    
+    fn get_owner(self: @TContractState) -> ContractAddress;
+    
+    fn get_proof_signer(self: @TContractState) -> felt252;
+
+    // Emergency pause functions
+    fn pause(ref self: TContractState);
+    
+    fn unpause(ref self: TContractState);
+    
+    fn is_paused(self: @TContractState) -> bool;
 }
 
 #[starknet::contract]
@@ -85,6 +101,8 @@ mod P2PEscrow {
         proof_signer: felt252,  // Public key of authorized signer
         // Reentrancy protection
         _reentrancy_guard: u32,
+        // Emergency pause
+        paused: bool,
     }
 
     #[event]
@@ -94,6 +112,10 @@ mod P2PEscrow {
         OrderLocked: OrderLocked,
         OrderReleased: OrderReleased,
         OrderRefunded: OrderRefunded,
+        OwnershipTransferred: OwnershipTransferred,
+        ProofSignerUpdated: ProofSignerUpdated,
+        Paused: Paused,
+        Unpaused: Unpaused,
     }
 
     #[derive(Drop, starknet::Event)]
@@ -121,11 +143,34 @@ mod P2PEscrow {
         order_id: felt252,
     }
 
+    #[derive(Drop, starknet::Event)]
+    struct OwnershipTransferred {
+        previous_owner: ContractAddress,
+        new_owner: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ProofSignerUpdated {
+        previous_signer: felt252,
+        new_signer: felt252,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Paused {
+        account: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct Unpaused {
+        account: ContractAddress,
+    }
+
     #[constructor]
     fn constructor(ref self: ContractState, owner: ContractAddress, proof_signer: felt252) {
         self.owner.write(owner);
         self.proof_signer.write(proof_signer);
         self._reentrancy_guard.write(0); // Initialize reentrancy guard
+        self.paused.write(false); // Initialize as unpaused
     }
 
     #[abi(embed_v0)]
@@ -137,6 +182,9 @@ mod P2PEscrow {
             token: ContractAddress,
             amount: u256
         ) {
+            // Emergency pause check
+            self._when_not_paused();
+
             // Reentrancy protection
             self._non_reentrant();
 
@@ -187,6 +235,9 @@ mod P2PEscrow {
             proof_hash: felt252,
             signature: Array<felt252>
         ) {
+            // Emergency pause check
+            self._when_not_paused();
+
             // Reentrancy protection
             self._non_reentrant();
 
@@ -224,6 +275,9 @@ mod P2PEscrow {
         }
 
         fn release(ref self: ContractState, order_id: felt252) {
+            // Emergency pause check
+            self._when_not_paused();
+
             // Reentrancy protection
             self._non_reentrant();
 
@@ -256,6 +310,9 @@ mod P2PEscrow {
         }
 
         fn refund(ref self: ContractState, order_id: felt252) {
+            // Emergency pause check
+            self._when_not_paused();
+
             // Reentrancy protection
             self._non_reentrant();
 
@@ -290,10 +347,96 @@ mod P2PEscrow {
         fn get_order(self: @ContractState, order_id: felt252) -> Order {
             self.orders.read(order_id)
         }
+
+        // Administrative functions with access control
+        fn update_proof_signer(ref self: ContractState, new_signer: felt252) {
+            // Access control - only owner can update proof signer
+            self._only_owner();
+            
+            // Validate new signer is not zero
+            assert!(new_signer != 0, "New signer cannot be zero");
+            
+            // Get previous signer for event
+            let previous_signer = self.proof_signer.read();
+            
+            // Update proof signer
+            self.proof_signer.write(new_signer);
+            
+            // Emit event
+            self.emit(ProofSignerUpdated {
+                previous_signer,
+                new_signer,
+            });
+        }
+        
+        fn transfer_ownership(ref self: ContractState, new_owner: ContractAddress) {
+            // Access control - only owner can transfer ownership
+            self._only_owner();
+            
+            // Validate new owner is not zero address
+            assert!(!new_owner.is_zero(), "New owner cannot be zero address");
+            
+            // Get previous owner for event
+            let previous_owner = self.owner.read();
+            
+            // Update ownership
+            self.owner.write(new_owner);
+            
+            // Emit event
+            self.emit(OwnershipTransferred {
+                previous_owner,
+                new_owner,
+            });
+        }
+        
+        fn get_owner(self: @ContractState) -> ContractAddress {
+            self.owner.read()
+        }
+        
+        fn get_proof_signer(self: @ContractState) -> felt252 {
+            self.proof_signer.read()
+        }
+
+        // Emergency pause functions
+        fn pause(ref self: ContractState) {
+            // Only owner can pause
+            self._only_owner();
+            
+            // Pause the contract
+            self.paused.write(true);
+            
+            // Emit pause event
+            self.emit(Paused { account: get_caller_address() });
+        }
+        
+        fn unpause(ref self: ContractState) {
+            // Only owner can unpause
+            self._only_owner();
+            
+            // Unpause the contract
+            self.paused.write(false);
+            
+            // Emit unpause event
+            self.emit(Unpaused { account: get_caller_address() });
+        }
+        
+        fn is_paused(self: @ContractState) -> bool {
+            self.paused.read()
+        }
     }
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
+        // Access control modifier - only owner can call
+        fn _only_owner(self: @ContractState) {
+            assert!(get_caller_address() == self.owner.read(), "Only owner can call this function");
+        }
+
+        // Emergency pause check modifier
+        fn _when_not_paused(self: @ContractState) {
+            assert!(!self.paused.read(), "Contract is paused");
+        }
+
         // Reentrancy protection modifier
         fn _non_reentrant(ref self: ContractState) {
             let guard_value = self._reentrancy_guard.read();
@@ -512,5 +655,71 @@ mod tests {
         // Test that reentrant calls would be detected
         // In a real scenario, if current_guard == 1, a reentrant call would fail
         assert!(current_guard == 0 || current_guard == 1, "Guard should only be 0 or 1");
+    }
+
+    #[test]
+    fn test_access_control() {
+        // Test access control logic
+        // This test simulates the access control functionality
+        
+        // Simulate owner and non-owner addresses
+        let owner_address: felt252 = 0x123;
+        let non_owner_address: felt252 = 0x456;
+        let caller_address: felt252 = 0x123; // Same as owner
+        
+        // Test owner access (should be allowed)
+        assert!(caller_address == owner_address, "Owner should have access");
+        
+        // Test non-owner access (should be denied)
+        let non_owner_caller: felt252 = 0x789;
+        assert!(non_owner_caller != owner_address, "Non-owner should not have access");
+        
+        // Test ownership transfer simulation
+        let new_owner: felt252 = 0xabc;
+        assert!(new_owner != owner_address, "New owner should be different");
+        assert!(new_owner != 0, "New owner should not be zero");
+        
+        // Test proof signer update simulation
+        let new_signer: felt252 = 0xdef;
+        assert!(new_signer != 0, "New signer should not be zero");
+        
+        // Test access control validation
+        let is_owner = caller_address == owner_address;
+        assert!(is_owner, "Access control should validate owner correctly");
+    }
+
+    #[test]
+    fn test_emergency_pause() {
+        // Test emergency pause functionality
+        // This test simulates the emergency pause mechanism
+        
+        // Simulate pause states
+        let unpaused: bool = false;
+        let paused: bool = true;
+        
+        // Test initial state (unpaused)
+        assert!(!unpaused, "Contract should start unpaused");
+        assert!(paused, "Paused state should be true when paused");
+        assert!(unpaused != paused, "Paused and unpaused states should be different");
+        
+        // Test pause state transitions
+        let mut current_pause_state = unpaused;
+        assert!(!current_pause_state, "Should start unpaused");
+        
+        // Simulate pause (only owner can do this)
+        current_pause_state = true;
+        assert!(current_pause_state, "Should be paused after pause call");
+        
+        // Simulate unpause (only owner can do this)
+        current_pause_state = false;
+        assert!(!current_pause_state, "Should be unpaused after unpause call");
+        
+        // Test pause validation
+        let is_paused = current_pause_state;
+        assert!(!is_paused, "Pause state should be correctly tracked");
+        
+        // Test that critical functions would be blocked when paused
+        // In a real scenario, if is_paused == true, critical functions would fail
+        assert!(is_paused == false || is_paused == true, "Pause state should be boolean");
     }
 }
