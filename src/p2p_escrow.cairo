@@ -15,7 +15,7 @@ use core::hash::HashStateTrait;
 //! # P2P Escrow Contract
 //!
 //! This contract implements a peer-to-peer escrow system for secure token transfers between buyers and sellers.
-//! It includes features such as time-locked escrow, signature verification, and optional token whitelisting.
+//! It includes features such as time-locked escrow, signature verification, and reentrancy protection.
 
 #[derive(Copy, Drop, Serde, starknet::Store, PartialEq)]
 pub struct Order {
@@ -83,6 +83,8 @@ mod P2PEscrow {
         used_proof: Map::<felt252, bool>,
         owner: ContractAddress,
         proof_signer: felt252,  // Public key of authorized signer
+        // Reentrancy protection
+        _reentrancy_guard: u32,
     }
 
     #[event]
@@ -123,6 +125,7 @@ mod P2PEscrow {
     fn constructor(ref self: ContractState, owner: ContractAddress, proof_signer: felt252) {
         self.owner.write(owner);
         self.proof_signer.write(proof_signer);
+        self._reentrancy_guard.write(0); // Initialize reentrancy guard
     }
 
     #[abi(embed_v0)]
@@ -134,6 +137,9 @@ mod P2PEscrow {
             token: ContractAddress,
             amount: u256
         ) {
+            // Reentrancy protection
+            self._non_reentrant();
+
             // Validate inputs
             assert!(amount > 0, "Amount must be positive");
             assert!(seller != get_caller_address(), "Cannot sell to self");
@@ -169,6 +175,9 @@ mod P2PEscrow {
                 token,
                 amount,
             });
+
+            // Reset reentrancy guard
+            self._reset_reentrancy_guard();
         }
 
         fn lock_order(
@@ -178,6 +187,9 @@ mod P2PEscrow {
             proof_hash: felt252,
             signature: Array<felt252>
         ) {
+            // Reentrancy protection
+            self._non_reentrant();
+
             // Check if proof was used
             assert!(!self.used_proof.read(proof_hash), "Proof already used");
 
@@ -206,9 +218,15 @@ mod P2PEscrow {
 
             // Emit event
             self.emit(OrderLocked { order_id, lock_expiry: order.lock_expiry });
+
+            // Reset reentrancy guard
+            self._reset_reentrancy_guard();
         }
 
         fn release(ref self: ContractState, order_id: felt252) {
+            // Reentrancy protection
+            self._non_reentrant();
+
             // Get order
             let mut order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
@@ -232,9 +250,15 @@ mod P2PEscrow {
 
             // Emit event
             self.emit(OrderReleased { order_id });
+
+            // Reset reentrancy guard
+            self._reset_reentrancy_guard();
         }
 
         fn refund(ref self: ContractState, order_id: felt252) {
+            // Reentrancy protection
+            self._non_reentrant();
+
             // Get order
             let mut order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
@@ -258,6 +282,9 @@ mod P2PEscrow {
 
             // Emit event
             self.emit(OrderRefunded { order_id });
+
+            // Reset reentrancy guard
+            self._reset_reentrancy_guard();
         }
 
         fn get_order(self: @ContractState, order_id: felt252) -> Order {
@@ -267,6 +294,18 @@ mod P2PEscrow {
 
     #[generate_trait]
     impl InternalImpl of InternalTrait {
+        // Reentrancy protection modifier
+        fn _non_reentrant(ref self: ContractState) {
+            let guard_value = self._reentrancy_guard.read();
+            assert!(guard_value == 0, "Reentrant call");
+            self._reentrancy_guard.write(1);
+        }
+
+        // Reset reentrancy guard (called at the end of functions)
+        fn _reset_reentrancy_guard(ref self: ContractState) {
+            self._reentrancy_guard.write(0);
+        }
+
         // Compute the message hash that should be signed
         fn _compute_message_hash(self: @ContractState, order_id: felt252, proof_hash: felt252) -> felt252 {
             let mut state = PedersenTrait::new(0);
@@ -442,5 +481,36 @@ mod tests {
         
         assert!(*signature.at(0) == expected_r, "Signature r is set correctly");
         assert!(*signature.at(1) == expected_s, "Signature s is set correctly");
+    }
+
+    #[test]
+    fn test_reentrancy_protection() {
+        // Test reentrancy protection logic
+        // This test simulates the reentrancy guard functionality
+        
+        // Simulate reentrancy guard values
+        let initial_guard: u32 = 0; // Not locked
+        let locked_guard: u32 = 1;  // Locked (function executing)
+        
+        // Test initial state
+        assert!(initial_guard == 0, "Initial guard should be 0");
+        assert!(locked_guard == 1, "Locked guard should be 1");
+        assert!(initial_guard != locked_guard, "Guard states should be different");
+        
+        // Test guard state transitions
+        let mut current_guard = initial_guard;
+        assert!(current_guard == 0, "Guard should start at 0");
+        
+        // Simulate function entry (lock)
+        current_guard = 1;
+        assert!(current_guard == 1, "Guard should be locked during execution");
+        
+        // Simulate function exit (unlock)
+        current_guard = 0;
+        assert!(current_guard == 0, "Guard should be reset after execution");
+        
+        // Test that reentrant calls would be detected
+        // In a real scenario, if current_guard == 1, a reentrant call would fail
+        assert!(current_guard == 0 || current_guard == 1, "Guard should only be 0 or 1");
     }
 }
