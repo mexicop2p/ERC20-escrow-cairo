@@ -2,35 +2,73 @@
 
 A secure and flexible peer-to-peer escrow contract built on StarkNet using Cairo. This contract facilitates safe token transfers between buyers and sellers with a time-locked escrow mechanism, **enhanced ECDSA signature verification with signature recovery**, **comprehensive reentrancy protection**, **access control & ownership management**, and **emergency pause functionality**.
 
-## 🚀 Features
+## 🎯 Use Cases & Applications
 
-- **✅ Enhanced ECDSA Verification**: **NEW!** Cryptographic signature verification with signature recovery
-- **✅ Token Transfer Logic**: Complete ERC20 token deposit, release, and refund functionality
-- **✅ Time-Locked Escrow**: Orders can be locked for a specified duration with automatic expiry
-- **✅ Order Management**: Create, lock, release, and refund orders with full state tracking
-- **✅ Event Emission**: Comprehensive event logging for all state changes
-- **✅ Input Validation**: Robust validation for amounts, addresses, and order states
-- **✅ Comprehensive Testing**: 13 test cases covering all functionality
-- **✅ Reentrancy Protection**: Complete protection against reentrancy attacks
-- **✅ Access Control & Ownership**: Owner-only administrative functions
-- **✅ Emergency Pause**: Emergency response capability for critical situations
+### **Primary Use Cases:**
 
-## 📋 Contract Structure
+1. **🏪 E-commerce & Marketplace Escrow**
+   - Secure payment escrow for online marketplaces
+   - Buyer protection for high-value purchases
+   - Seller protection against chargebacks
+   - Time-locked release mechanisms
 
-The contract consists of the following main components:
+2. **🏠 Real Estate Tokenization**
+   - Property token sales with escrow protection
+   - Fractional ownership transfers
+   - Time-bound closing conditions
+   - Regulatory compliance for real estate transactions
 
-- **`P2PEscrow`**: Main escrow contract with core functionality
-- **`Order`**: Data structure for order management
-- **`OrderStatus`**: Enum for order state tracking
-- **`IERC20`**: Minimal ERC20 interface for token operations
-- **Comprehensive test suite** with 13 passing tests
+3. **🎨 NFT & Digital Asset Trading**
+   - Secure NFT marketplace transactions
+   - Multi-signature approval for high-value NFTs
+   - Time-locked releases for complex deals
+   - Protection against fake listings
 
-## 🛠️ Getting Started
+4. **💼 Business-to-Business (B2B) Transactions**
+   - Corporate token transfers with approval workflows
+   - Multi-party escrow for complex deals
+   - Time-bound payment releases
+   - Audit trail for compliance
+
+5. **🌐 Cross-Chain Bridge Escrow**
+   - Secure cross-chain asset transfers
+   - Time-locked bridge operations
+   - Multi-signature bridge security
+   - Protection against bridge attacks
+
+### **User Journey Examples:**
+
+#### **🏪 E-commerce Scenario:**
+```
+1. Buyer wants to purchase a high-value item (10 ETH)
+2. Buyer calls deposit(order_id, seller_address, token_address, 10_ETH)
+3. Seller provides proof of item availability
+4. Authorized signer creates signature for order lock
+5. Buyer calls lock_order(order_id, 24_hours, proof_hash, signature)
+6. After 24 hours, either:
+   - Seller calls release() to receive payment (item delivered)
+   - Buyer calls refund() to get money back (item not delivered)
+```
+
+#### **🏠 Real Estate Scenario:**
+```
+1. Property token seller lists 1000 tokens for 50 ETH
+2. Buyer deposits 50 ETH into escrow
+3. Legal documents are verified off-chain
+4. Authorized signer (lawyer) creates signature
+5. Order is locked for 7 days (closing period)
+6. Upon successful closing, seller calls release()
+7. If closing fails, buyer calls refund()
+```
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - [Scarb](https://docs.swmansion.com/scarb/) (Cairo package manager)
 - [StarkNet Foundry](https://foundry-rs.github.io/starknet-foundry/) (Testing framework)
+- [StarkNet CLI](https://docs.starknet.io/documentation/tools/cli/) (Deployment)
+- [Argent X](https://www.argent.xyz/argent-x/) or [Braavos](https://braavos.app/) (Wallet)
 
 ### Installation
 
@@ -49,6 +87,122 @@ The contract consists of the following main components:
    ```bash
    scarb test
    ```
+
+## 🛠️ Deployment & Configuration
+
+### **Step 1: Prepare Deployment Environment**
+
+```bash
+# Install StarkNet CLI
+curl -L https://raw.githubusercontent.com/software-mansion/starknet.py/master/scripts/install.sh | sh
+
+# Configure StarkNet
+starknet --version
+starknet config --network testnet  # or mainnet
+```
+
+### **Step 2: Build Contract**
+
+```bash
+# Build the contract
+scarb build
+
+# The compiled contract will be in:
+# target/dev/p2p_escrow_P2PEscrow.contract_class.json
+```
+
+### **Step 3: Deploy Contract**
+
+```bash
+# Deploy to testnet
+starknet deploy \
+  --contract target/dev/p2p_escrow_P2PEscrow.contract_class.json \
+  --inputs <owner_address> <proof_signer_public_key>
+
+# Example:
+starknet deploy \
+  --contract target/dev/p2p_escrow_P2PEscrow.contract_class.json \
+  --inputs 0x1234567890abcdef 0xabcdef1234567890
+```
+
+### **Step 4: Configure Contract**
+
+After deployment, configure your contract:
+
+```bash
+# 1. Set the proof signer (authorized signature verifier)
+starknet invoke \
+  --address <contract_address> \
+  --abi target/dev/p2p_escrow_P2PEscrow.contract_class.json \
+  --function update_proof_signer \
+  --inputs <new_proof_signer_public_key>
+
+# 2. Verify configuration
+starknet call \
+  --address <contract_address> \
+  --abi target/dev/p2p_escrow_P2PEscrow.contract_class.json \
+  --function get_proof_signer
+```
+
+### **Step 5: Integration Setup**
+
+#### **Frontend Integration (JavaScript/TypeScript):**
+
+```typescript
+// Example integration with StarkNet.js
+import { Contract, Account, cairo } from "starknet";
+
+const escrowContract = new Contract(
+  contractABI,
+  contractAddress,
+  account
+);
+
+// Deposit tokens
+await escrowContract.deposit(
+  orderId,
+  sellerAddress,
+  tokenAddress,
+  cairo.uint256(amount)
+);
+
+// Lock order with signature
+await escrowContract.lock_order(
+  orderId,
+  lockDuration,
+  proofHash,
+  [signatureR, signatureS]
+);
+
+// Release funds
+await escrowContract.release(orderId);
+
+// Refund funds
+await escrowContract.refund(orderId);
+```
+
+#### **Backend Integration (Python):**
+
+```python
+# Example with starknet.py
+from starknet_py.contract import Contract
+from starknet_py.net.account import Account
+
+# Initialize contract
+contract = Contract(
+    address=contract_address,
+    abi=contract_abi,
+    account=account
+)
+
+# Create order
+await contract.functions["deposit"].invoke(
+    order_id=order_id,
+    seller=seller_address,
+    token=token_address,
+    amount=amount
+)
+```
 
 ## 📖 Usage
 
@@ -273,7 +427,7 @@ scarb test
 ### Deploy
 ```bash
 # Deploy to StarkNet testnet/mainnet
-# (Deployment instructions depend on your preferred tooling)
+# See detailed deployment instructions above
 ```
 
 ## 📝 License
