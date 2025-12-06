@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { cepSchema } from "../../../lib/cep";
 
 const scriptPath = path.join(process.cwd(), "scripts", "cep_validate.py");
+const pythonExecutable = process.env.CEP_PYTHON_BIN ?? "python3";
 
 export async function POST(request: Request) {
   const body = await request.json();
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
 
 function runPythonValidator(payload: unknown): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const child = spawn("python", [scriptPath], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(pythonExecutable, [scriptPath], { stdio: ["pipe", "pipe", "pipe"] });
 
     let stdout = "";
     let stderr = "";
