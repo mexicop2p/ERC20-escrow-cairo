@@ -27,9 +27,9 @@ export default function Home() {
   const [cepPayload, setCepPayload] = useState<CepPayload>({
     fecha: new Date().toISOString().slice(0, 10),
     claveRastreo: "",
-    emisor: "400",
-    receptor: "906",
-    cuenta: "",
+    emisor: "90646",
+    receptor: "40012",
+    cuenta: "012180004643051249",
     montoCentavos: 0,
     pagoABanco: false
   });
@@ -193,22 +193,28 @@ export default function Home() {
             <div className="grid-2">
               <div>
                 <label className="label" htmlFor="emisor">
-                  Banco emisor (CLABE code)
+                  Banco emisor (clave de banco, 5 dígitos)
                 </label>
                 <input
                   className="input"
                   id="emisor"
+                  inputMode="numeric"
+                  pattern="\\d{5}"
+                  placeholder="90646"
                   value={cepPayload.emisor}
                   onChange={(e) => handleCepChange("emisor", e.target.value)}
                 />
               </div>
               <div>
                 <label className="label" htmlFor="receptor">
-                  Banco receptor (CLABE code)
+                  Banco receptor (clave de banco, 5 dígitos)
                 </label>
                 <input
                   className="input"
                   id="receptor"
+                  inputMode="numeric"
+                  pattern="\\d{5}"
+                  placeholder="40012"
                   value={cepPayload.receptor}
                   onChange={(e) => handleCepChange("receptor", e.target.value)}
                 />
@@ -216,11 +222,14 @@ export default function Home() {
             </div>
             <div>
               <label className="label" htmlFor="cuenta">
-                Cuenta beneficiaria
+                Cuenta beneficiaria (CLABE 18 dígitos)
               </label>
               <input
                 className="input"
                 id="cuenta"
+                inputMode="numeric"
+                pattern="\\d{18}"
+                placeholder="012180004643051249"
                 value={cepPayload.cuenta}
                 onChange={(e) => handleCepChange("cuenta", e.target.value)}
               />

@@ -10,7 +10,7 @@ if (!candidates.length) {
 const target = candidates.shift();
 
 function installWith(binary) {
-  const child = spawn(binary, ["-m", "pip", "install", "git+https://github.com/cuenca-mx/cep-python"], {
+  const child = spawn(binary, ["-m", "pip", "install", "cepmex"], {
     stdio: "inherit",
   });
 

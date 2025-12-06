@@ -3,10 +3,10 @@ import json
 import sys
 
 try:
-    from cep.transferencia import Transferencia
+    from cep import Transferencia
     from cep.exc import CepError, TransferNotFoundError, CepNotAvailableError
 except Exception as exc:  # pragma: no cover - import side effects only
-    print(json.dumps({"valid": False, "error": f"cep-python missing or failed to import: {exc}"}))
+    print(json.dumps({"valid": False, "error": f"cepmex missing or failed to import: {exc}"}))
     sys.exit(0)
 
 
