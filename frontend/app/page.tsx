@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { z } from "zod";
-import escrowAbi from "../abi/p2pEscrow.json";
+import escrowAbi from "./abi/p2pEscrow.json";
 import { cepSchema, type CepPayload, type CepValidationResult, validateCep } from "../lib/cep";
 import {
   PAYMASTER_CONFIG,
