@@ -6,6 +6,8 @@ Scarb.lock
 *.sierra
 *.casm
 *.json
+# Allow project configuration JSON files while ignoring Cairo build JSON
+!frontend/**/*.json
 
 # Starknet artifacts
 .snfoundry_cache/

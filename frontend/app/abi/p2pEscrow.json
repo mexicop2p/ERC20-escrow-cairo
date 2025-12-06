@@ -1,0 +1,555 @@
+[
+  {
+    "type": "impl",
+    "name": "P2PEscrowImpl",
+    "interface_name": "p2p_escrow::p2p_escrow::IP2PEscrow"
+  },
+  {
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "core::integer::u256",
+    "members": [
+      {
+        "name": "low",
+        "type": "core::integer::u128"
+      },
+      {
+        "name": "high",
+        "type": "core::integer::u128"
+      }
+    ]
+  },
+  {
+    "type": "struct",
+    "name": "p2p_escrow::p2p_escrow::Order",
+    "members": [
+      {
+        "name": "seller",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "buyer",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "token",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "lockExpiry",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "status",
+        "type": "core::integer::u8"
+      }
+    ]
+  },
+  {
+    "type": "interface",
+    "name": "p2p_escrow::p2p_escrow::IP2PEscrow",
+    "items": [
+      {
+        "type": "function",
+        "name": "deposit",
+        "inputs": [
+          {
+            "name": "id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "amount",
+            "type": "core::integer::u128"
+          },
+          {
+            "name": "token",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "lockOrder",
+        "inputs": [
+          {
+            "name": "id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "duration",
+            "type": "core::integer::u64"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "release",
+        "inputs": [
+          {
+            "name": "id",
+            "type": "core::felt252"
+          },
+          {
+            "name": "sig_r",
+            "type": "core::felt252"
+          },
+          {
+            "name": "sig_s",
+            "type": "core::felt252"
+          },
+          {
+            "name": "v",
+            "type": "core::integer::u8"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "refund",
+        "inputs": [
+          {
+            "name": "id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "updateProofSigner",
+        "inputs": [
+          {
+            "name": "newSigner",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "setWhitelistEnabled",
+        "inputs": [
+          {
+            "name": "enabled",
+            "type": "core::bool"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "whitelistToken",
+        "inputs": [
+          {
+            "name": "token",
+            "type": "core::starknet::contract_address::ContractAddress"
+          },
+          {
+            "name": "allowed",
+            "type": "core::bool"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "orders",
+        "inputs": [
+          {
+            "name": "id",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "p2p_escrow::p2p_escrow::Order"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "usedProof",
+        "inputs": [
+          {
+            "name": "proofHash",
+            "type": "core::felt252"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "proofSigner",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::felt252"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "allowedTokens",
+        "inputs": [
+          {
+            "name": "token",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "whitelistEnabled",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::bool"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "MAX_LOCK_DURATION",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::integer::u256"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "MXN_KYC_LIMIT",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::integer::u256"
+          }
+        ],
+        "state_mutability": "view"
+      }
+    ]
+  },
+  {
+    "type": "impl",
+    "name": "OwnableImpl",
+    "interface_name": "openzeppelin_access::ownable::interface::IOwnable"
+  },
+  {
+    "type": "interface",
+    "name": "openzeppelin_access::ownable::interface::IOwnable",
+    "items": [
+      {
+        "type": "function",
+        "name": "owner",
+        "inputs": [],
+        "outputs": [
+          {
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "state_mutability": "view"
+      },
+      {
+        "type": "function",
+        "name": "transfer_ownership",
+        "inputs": [
+          {
+            "name": "new_owner",
+            "type": "core::starknet::contract_address::ContractAddress"
+          }
+        ],
+        "outputs": [],
+        "state_mutability": "external"
+      },
+      {
+        "type": "function",
+        "name": "renounce_ownership",
+        "inputs": [],
+        "outputs": [],
+        "state_mutability": "external"
+      }
+    ]
+  },
+  {
+    "type": "constructor",
+    "name": "constructor",
+    "inputs": [
+      {
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
+      {
+        "name": "_proofSigner",
+        "type": "core::felt252"
+      },
+      {
+        "name": "_maxLockSecs",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "_kycLimit",
+        "type": "core::integer::u256"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "previous_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "new_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "previous_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "new_owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "OwnershipTransferred",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferred",
+        "kind": "nested"
+      },
+      {
+        "name": "OwnershipTransferStarted",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::OwnershipTransferStarted",
+        "kind": "nested"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::OrderCreated",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "seller",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "amount",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "token",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::OrderLocked",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "buyer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "lockExpiry",
+        "type": "core::integer::u64",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::OrderReleased",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "id",
+        "type": "core::felt252",
+        "kind": "key"
+      },
+      {
+        "name": "buyer",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::OrderRefunded",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "id",
+        "type": "core::felt252",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::ProofSignerUpdated",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "newSigner",
+        "type": "core::felt252",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::ProofConsumed",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "proofHash",
+        "type": "core::felt252",
+        "kind": "key"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::TokenWhitelistSet",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "token",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "key"
+      },
+      {
+        "name": "allowed",
+        "type": "core::bool",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "p2p_escrow::p2p_escrow::P2PEscrow::Event",
+    "kind": "enum",
+    "variants": [
+      {
+        "name": "OwnableEvent",
+        "type": "openzeppelin_access::ownable::ownable::OwnableComponent::Event",
+        "kind": "flat"
+      },
+      {
+        "name": "OrderCreated",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::OrderCreated",
+        "kind": "nested"
+      },
+      {
+        "name": "OrderLocked",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::OrderLocked",
+        "kind": "nested"
+      },
+      {
+        "name": "OrderReleased",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::OrderReleased",
+        "kind": "nested"
+      },
+      {
+        "name": "OrderRefunded",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::OrderRefunded",
+        "kind": "nested"
+      },
+      {
+        "name": "ProofSignerUpdated",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::ProofSignerUpdated",
+        "kind": "nested"
+      },
+      {
+        "name": "ProofConsumed",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::ProofConsumed",
+        "kind": "nested"
+      },
+      {
+        "name": "TokenWhitelistSet",
+        "type": "p2p_escrow::p2p_escrow::P2PEscrow::TokenWhitelistSet",
+        "kind": "nested"
+      }
+    ]
+  }
+]

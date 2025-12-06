@@ -11,6 +11,7 @@ A Next.js (App Router) dashboard for the Cairo P2P escrow contract. It stitches 
 ## Getting started
 ```bash
 cd frontend
+npm --version  # ensure npm is available
 npm install
 npm run cep:install   # installs cep-python from GitHub for the validation route
 npm run dev
