@@ -3,20 +3,21 @@
 A secure peer-to-peer escrow smart contract for the Mexican crypto market, built on Starknet using Cairo. This contract facilitates trustless SPEI-to-crypto trades with CEP (Comprobante Electronico de Pago) validation.
 
 [![Security Audit](https://img.shields.io/badge/Security-Audited-green)](https://github.com/mexicop2p/ERC20-escrow-cairo/issues/2)
-[![Starknet](https://img.shields.io/badge/Starknet-Mainnet-blue)](https://starkscan.co/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9)
+[![Starknet](https://img.shields.io/badge/Starknet-Mainnet-blue)](https://voyager.online/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9)
 [![Cairo](https://img.shields.io/badge/Cairo-2.10.1-orange)](https://www.cairo-lang.org/)
 
 ## Deployment
 
 | Network | Contract Address | Explorer |
 |---------|------------------|----------|
-| **Mainnet** | `0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9` | [Starkscan](https://starkscan.co/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9) |
+| **Mainnet** | `0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9` | [Voyager](https://voyager.online/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9) |
 
 ### Whitelisted Tokens
 
 | Token | Address | Decimals |
 |-------|---------|----------|
-| USDC | `0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8` | 6 |
+| USDC (Native) | `0x033068F6539f8e6e6b131e6B2B814e6c34A5224bC66947c47DaB9dFeE93b35fb` | 6 |
+| USDC.e (Bridged) | `0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8` | 6 |
 | WBTC | `0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac` | 8 |
 
 ---
