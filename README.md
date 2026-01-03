@@ -1,492 +1,461 @@
-# P2P Escrow Contract
+# MexicoP2P Escrow Contract
 
-A secure and flexible peer-to-peer escrow contract built on StarkNet using Cairo. This contract facilitates safe token transfers between buyers and sellers with a time-locked escrow mechanism, **enhanced ECDSA signature verification with signature recovery**, **comprehensive reentrancy protection**, **access control & ownership management**, and **emergency pause functionality**.
+A secure peer-to-peer escrow smart contract for the Mexican crypto market, built on Starknet using Cairo. This contract facilitates trustless SPEI-to-crypto trades with CEP (Comprobante Electronico de Pago) validation.
 
-## 🎯 Use Cases & Applications
+[![Security Audit](https://img.shields.io/badge/Security-Audited-green)](https://github.com/mexicop2p/ERC20-escrow-cairo/issues/2)
+[![Starknet](https://img.shields.io/badge/Starknet-Mainnet-blue)](https://starkscan.co/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9)
+[![Cairo](https://img.shields.io/badge/Cairo-2.10.1-orange)](https://www.cairo-lang.org/)
 
-### **Primary Use Cases:**
+## Deployment
 
-1. **🏪 E-commerce & Marketplace Escrow**
-   - Secure payment escrow for online marketplaces
-   - Buyer protection for high-value purchases
-   - Seller protection against chargebacks
-   - Time-locked release mechanisms
+| Network | Contract Address | Explorer |
+|---------|------------------|----------|
+| **Mainnet** | `0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9` | [Starkscan](https://starkscan.co/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9) |
 
-2. **🏠 Real Estate Tokenization**
-   - Property token sales with escrow protection
-   - Fractional ownership transfers
-   - Time-bound closing conditions
-   - Regulatory compliance for real estate transactions
+### Whitelisted Tokens
 
-3. **🎨 NFT & Digital Asset Trading**
-   - Secure NFT marketplace transactions
-   - Multi-signature approval for high-value NFTs
-   - Time-locked releases for complex deals
-   - Protection against fake listings
+| Token | Address | Decimals |
+|-------|---------|----------|
+| USDC | `0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8` | 6 |
+| WBTC | `0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac` | 8 |
 
-4. **💼 Business-to-Business (B2B) Transactions**
-   - Corporate token transfers with approval workflows
-   - Multi-party escrow for complex deals
-   - Time-bound payment releases
-   - Audit trail for compliance
+---
 
-5. **🌐 Cross-Chain Bridge Escrow**
-   - Secure cross-chain asset transfers
-   - Time-locked bridge operations
-   - Multi-signature bridge security
-   - Protection against bridge attacks
+## Features
 
-### **User Journey Examples:**
+- **5-State Machine**: Open, Locked, Released, Refunded, Disputed
+- **ECDSA Signature Verification**: Cryptographically secure release mechanism using `check_ecdsa_signature`
+- **On-Chain Dispute Resolution**: Arbiter-based dispute handling with transparent resolution
+- **Multi-Token Whitelist**: Support for USDC, WBTC, and extensible to other ERC20 tokens
+- **Emergency Pause**: Owner can pause all operations in case of emergency
+- **Reentrancy Protection**: All critical functions protected against reentrancy attacks
+- **Minimum Lock Duration**: 5-minute minimum prevents griefing attacks
 
-#### **🏪 E-commerce Scenario:**
+---
+
+## Architecture
+
 ```
-1. Buyer wants to purchase a high-value item (10 ETH)
-2. Buyer calls deposit(order_id, seller_address, token_address, 10_ETH)
-3. Seller provides proof of item availability
-4. Authorized signer creates signature for order lock
-5. Buyer calls lock_order(order_id, 24_hours, proof_hash, signature)
-6. After 24 hours, either:
-   - Seller calls release() to receive payment (item delivered)
-   - Buyer calls refund() to get money back (item not delivered)
-```
-
-#### **🏠 Real Estate Scenario:**
-```
-1. Property token seller lists 1000 tokens for 50 ETH
-2. Buyer deposits 50 ETH into escrow
-3. Legal documents are verified off-chain
-4. Authorized signer (lawyer) creates signature
-5. Order is locked for 7 days (closing period)
-6. Upon successful closing, seller calls release()
-7. If closing fails, buyer calls refund()
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Scarb](https://docs.swmansion.com/scarb/) (Cairo package manager)
-- [StarkNet Foundry](https://foundry-rs.github.io/starknet-foundry/) (Testing framework)
-- [StarkNet CLI](https://docs.starknet.io/documentation/tools/cli/) (Deployment)
-- [Argent X](https://www.argent.xyz/argent-x/) or [Braavos](https://braavos.app/) (Wallet)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd escrow-cairo
-   ```
-
-2. Install dependencies:
-   ```bash
-   scarb build
-   ```
-
-3. Run tests:
-   ```bash
-   scarb test
-   ```
-
-## 🛠️ Deployment & Configuration
-
-### **Step 1: Prepare Deployment Environment**
-
-```bash
-# Install StarkNet CLI
-curl -L https://raw.githubusercontent.com/software-mansion/starknet.py/master/scripts/install.sh | sh
-
-# Configure StarkNet
-starknet --version
-starknet config --network testnet  # or mainnet
++------------------+     +-------------------+     +------------------+
+|                  |     |                   |     |                  |
+|  MexicoP2P Web   |---->|  Backend API      |---->|  Starknet        |
+|  (Next.js)       |     |  (CEP Validator)  |     |  Escrow Contract |
+|                  |     |                   |     |                  |
++------------------+     +-------------------+     +------------------+
+        |                        |                        |
+        |   1. Submit CEP        |                        |
+        |----------------------->|                        |
+        |                        |                        |
+        |   2. Validate via      |                        |
+        |      Banxico API       |                        |
+        |                        |                        |
+        |   3. Generate ECDSA    |                        |
+        |      Signature         |                        |
+        |<-----------------------|                        |
+        |                        |                        |
+        |   4. Call release()    |                        |
+        |      with signature    |                        |
+        |------------------------------------------------>|
+        |                        |                        |
+        |   5. Verify signature  |                        |
+        |      & transfer funds  |                        |
+        |<------------------------------------------------|
 ```
 
-### **Step 2: Build Contract**
+---
 
-```bash
-# Build the contract
-scarb build
+## Order State Machine
 
-# The compiled contract will be in:
-# target/dev/p2p_escrow_P2PEscrow.contract_class.json
+```
+                              +-------------+
+                              |             |
+                    deposit() |    OPEN     |
+          +------------------>|     (0)     |
+          |                   |             |
+          |                   +------+------+
+          |                          |
+          |                          | lockOrder()
+          |                          v
+          |                   +-------------+
+          |                   |             |
+          |                   |   LOCKED    |<-----------+
+          |                   |     (1)     |            |
+          |                   |             |            |
+          |                   +------+------+            |
+          |                          |                   |
+          |         +----------------+----------------+  |
+          |         |                |                |  |
+          |         v                v                v  |
+          |  +-------------+  +-------------+  +-------------+
+          |  |             |  |             |  |             |
+          |  |  RELEASED   |  |  REFUNDED   |  |  DISPUTED   |
+          |  |     (2)     |  |     (3)     |  |     (4)     |
+          |  |             |  |             |  |             |
+          |  +-------------+  +-------------+  +------+------+
+          |                                          |
+          |                         resolveDispute() |
+          |                                          v
+          |                                   Winner receives
+          |                                   funds (Released
+          |                                   or Refunded)
+          |
+     [Seller]
 ```
 
-### **Step 3: Deploy Contract**
+### State Transitions
 
-```bash
-# Deploy to testnet
-starknet deploy \
-  --contract target/dev/p2p_escrow_P2PEscrow.contract_class.json \
-  --inputs <owner_address> <proof_signer_public_key>
+| From | To | Function | Caller | Conditions |
+|------|-----|----------|--------|------------|
+| - | Open | `deposit()` | Seller | Token whitelisted, amount > 0 |
+| Open | Locked | `lockOrder()` | Buyer | Duration: 5min - 24h |
+| Locked | Released | `release()` | Buyer | Valid ECDSA signature |
+| Locked | Refunded | `refund()` | Seller/Owner | Lock expired (seller) or anytime (owner) |
+| Locked | Disputed | `openDispute()` | Buyer/Seller | Order is locked |
+| Disputed | Released/Refunded | `resolveDispute()` | Arbiter | Winner = buyer or seller |
 
-# Example:
-starknet deploy \
-  --contract target/dev/p2p_escrow_P2PEscrow.contract_class.json \
-  --inputs 0x1234567890abcdef 0xabcdef1234567890
+---
+
+## Security Model
+
+### Signature Verification Flow
+
+```
++------------------+                              +------------------+
+|                  |                              |                  |
+|  Buyer submits   |   1. CEP image/data         |  Backend         |
+|  payment proof   |----------------------------->|  Validates CEP   |
+|                  |                              |  via Banxico     |
++------------------+                              +--------+---------+
+                                                          |
+                                                          | 2. Valid CEP
+                                                          v
+                                                 +------------------+
+                                                 |                  |
+                                                 |  Generate hash:  |
+                                                 |  Pedersen(       |
+                                                 |    contract,     |
+                                                 |    order_id,     |
+                                                 |    proof_hash,   |
+                                                 |    token,        |
+                                                 |    amount,       |
+                                                 |    seller,       |
+                                                 |    buyer         |
+                                                 |  )               |
+                                                 +--------+---------+
+                                                          |
+                                                          | 3. Sign with
+                                                          |    private key
+                                                          v
++------------------+                              +------------------+
+|                  |   4. (sig_r, sig_s)         |                  |
+|  Buyer calls     |<-----------------------------|  Return          |
+|  release()       |                              |  signature       |
+|                  |                              |                  |
++--------+---------+                              +------------------+
+         |
+         | 5. Contract verifies
+         v
++------------------+
+|                  |
+|  check_ecdsa_    |
+|  signature(      |
+|    message_hash, |
+|    proof_signer, |  <-- Public key stored in contract
+|    sig_r,        |
+|    sig_s         |
+|  )               |
+|                  |
++--------+---------+
+         |
+         | 6. Valid? Transfer funds
+         v
++------------------+
+|                  |
+|  Funds released  |
+|  to buyer        |
+|                  |
++------------------+
 ```
 
-### **Step 4: Configure Contract**
+### Fraud Prevention Matrix
 
-After deployment, configure your contract:
+| Attack Vector | Protection | Implementation |
+|--------------|------------|----------------|
+| Fake payment proof | CEP validation via Banxico API | Backend validates before signing |
+| Signature forgery | ECDSA cryptography | `check_ecdsa_signature()` in Cairo |
+| Replay attack | Unique proof_hash per transaction | Hash includes order details |
+| Reentrancy | Custom guard | `_set_reentrancy()` / `_clear_reentrancy()` |
+| Griefing (short locks) | Minimum duration | `MIN_LOCK_DURATION = 300` (5 min) |
+| Fund theft | On-chain escrow | Funds locked in contract until release |
+| Unauthorized release | Signature required | Only valid signatures from proof_signer |
+| Seller abandonment | Dispute mechanism | Arbiter can force release to buyer |
 
-```bash
-# 1. Set the proof signer (authorized signature verifier)
-starknet invoke \
-  --address <contract_address> \
-  --abi target/dev/p2p_escrow_P2PEscrow.contract_class.json \
-  --function update_proof_signer \
-  --inputs <new_proof_signer_public_key>
+---
 
-# 2. Verify configuration
-starknet call \
-  --address <contract_address> \
-  --abi target/dev/p2p_escrow_P2PEscrow.contract_class.json \
-  --function get_proof_signer
+## Contract Interface
+
+### Core Functions
+
+```cairo
+// Seller deposits tokens into escrow (creates order)
+fn deposit(order_id: felt252, amount: u256, token: ContractAddress)
+
+// Buyer locks an open order (starts the trade timer)
+fn lockOrder(order_id: felt252, duration_seconds: u64)
+
+// Buyer releases funds with valid signature from backend
+fn release(order_id: felt252, sig_r: felt252, sig_s: felt252)
+
+// Seller refunds after lock expires (or owner anytime for emergency)
+fn refund(order_id: felt252)
+
+// Query order details
+fn orders(order_id: felt252) -> Order
 ```
 
-### **Step 5: Integration Setup**
+### Dispute Functions
 
-#### **Frontend Integration (JavaScript/TypeScript):**
+```cairo
+// Buyer or seller opens a dispute on a locked order
+fn openDispute(order_id: felt252)
 
-```typescript
-// Example integration with StarkNet.js
-import { Contract, Account, cairo } from "starknet";
+// Arbiter resolves dispute (winner receives funds)
+fn resolveDispute(order_id: felt252, winner: ContractAddress)
 
-const escrowContract = new Contract(
-  contractABI,
-  contractAddress,
-  account
-);
-
-// Deposit tokens
-await escrowContract.deposit(
-  orderId,
-  sellerAddress,
-  tokenAddress,
-  cairo.uint256(amount)
-);
-
-// Lock order with signature
-await escrowContract.lock_order(
-  orderId,
-  lockDuration,
-  proofHash,
-  [signatureR, signatureS]
-);
-
-// Release funds
-await escrowContract.release(orderId);
-
-// Refund funds
-await escrowContract.refund(orderId);
+// Arbiter management (owner-only)
+fn addArbiter(arbiter: ContractAddress)
+fn removeArbiter(arbiter: ContractAddress)
+fn isArbiter(address: ContractAddress) -> bool
 ```
 
-#### **Backend Integration (Python):**
+### Token Whitelist (Owner-only)
 
-```python
-# Example with starknet.py
-from starknet_py.contract import Contract
-from starknet_py.net.account import Account
-
-# Initialize contract
-contract = Contract(
-    address=contract_address,
-    abi=contract_abi,
-    account=account
-)
-
-# Create order
-await contract.functions["deposit"].invoke(
-    order_id=order_id,
-    seller=seller_address,
-    token=token_address,
-    amount=amount
-)
+```cairo
+fn add_allowed_token(token: ContractAddress)
+fn remove_allowed_token(token: ContractAddress)
+fn is_token_allowed(token: ContractAddress) -> bool
 ```
-
-## 📖 Usage
-
-### Order Lifecycle
-
-1. **Deposit** - Buyer deposits tokens into escrow
-   ```cairo
-   deposit(order_id: felt252, seller: ContractAddress, token: ContractAddress, amount: u256)
-   ```
-   - Validates amount > 0
-   - Ensures seller ≠ buyer
-   - Transfers tokens from buyer to contract
-   - Emits `OrderDeposited` event
-   - **Protected against reentrancy attacks**
-   - **Blocked when contract is paused**
-
-2. **Lock Order** - Lock the order with time duration and signature verification
-   ```cairo
-   lock_order(order_id: felt252, lock_duration: u64, proof_hash: felt252, signature: Array<felt252>)
-   ```
-   - **Enhanced ECDSA signature verification with recovery**
-   - Sets order expiry timestamp
-   - Changes status to `Locked`
-   - Emits `OrderLocked` event
-   - **Protected against reentrancy attacks**
-   - **Blocked when contract is paused**
-
-3. **Release** - Release funds to seller (anyone can call)
-   ```cairo
-   release(order_id: felt252)
-   ```
-   - Transfers tokens to seller
-   - Changes status to `Released`
-   - Emits `OrderReleased` event
-   - **Protected against reentrancy attacks**
-   - **Blocked when contract is paused**
-
-4. **Refund** - Refund to buyer after lock expiry
-   ```cairo
-   refund(order_id: felt252)
-   ```
-   - Validates lock has expired
-   - Transfers tokens back to buyer
-   - Changes status to `Refunded`
-   - Emits `OrderRefunded` event
-   - **Protected against reentrancy attacks**
-   - **Blocked when contract is paused**
 
 ### Administrative Functions
 
-- **Update Proof Signer**
-  ```cairo
-  update_proof_signer(new_signer: felt252)
-  ```
-  - Owner-only function
-  - Updates the authorized signature verifier
-  - Emits `ProofSignerUpdated` event
-
-- **Transfer Ownership**
-  ```cairo
-  transfer_ownership(new_owner: ContractAddress)
-  ```
-  - Owner-only function
-  - Transfers contract ownership
-  - Emits `OwnershipTransferred` event
-
-- **Emergency Pause Functions**
-  ```cairo
-  pause()           // Owner-only: Pause contract
-  unpause()         // Owner-only: Unpause contract
-  is_paused()       // Public: Check pause status
-  ```
-  - **Emergency response capability**
-  - **Blocks all critical functions when paused**
-  - **Only owner can pause/unpause**
-
-## 🔐 Security Features
-
-### 1. **🔐 Enhanced ECDSA Verification** - **NEW!**
 ```cairo
-fn _verify_signature(self: @ContractState, message_hash: felt252, signature: Array<felt252>) -> bool
-fn _recover_public_key(self: @ContractState, message_hash: felt252, r: felt252, s: felt252) -> felt252
+fn update_proof_signer(new_signer: felt252)
+fn transfer_ownership(new_owner: ContractAddress)
+fn pause()
+fn unpause()
+fn is_paused() -> bool
+fn get_owner() -> ContractAddress
+fn get_proof_signer() -> felt252
 ```
-- **Signature recovery for cryptographic proof**
-- **Enhanced validation with multiple security layers**
-- **Public key recovery from signature components**
-- **Prevents signature forgery and replay attacks**
-- **Mathematical proof of signature authenticity**
 
-### 2. **🔒 Reentrancy Protection**
+---
+
+## Events
+
 ```cairo
-fn _non_reentrant(ref self: ContractState)
-fn _reset_reentrancy_guard(ref self: ContractState)
+OrderCreated { order_id, seller, token, amount }
+OrderLocked { order_id, buyer, lock_expiry }
+OrderReleased { order_id, buyer, token, amount }
+OrderRefunded { order_id, seller, token, amount }
+DisputeOpened { order_id, opened_by }
+DisputeResolved { order_id, arbiter, winner }
+OwnershipTransferred { previous_owner, new_owner }
+ProofSignerUpdated { previous_signer, new_signer }
+Paused { account }
+Unpaused { account }
+TokenAdded { token }
+TokenRemoved { token }
+ArbiterAdded { arbiter }
+ArbiterRemoved { arbiter }
 ```
-- **Complete protection against reentrancy attacks**
-- Guards all critical functions (deposit, lock_order, release, refund)
-- Uses atomic state management with reentrancy guard
-- Prevents recursive function calls during execution
-- **Critical for token transfer security**
 
-### 3. **🛡️ Access Control & Ownership Management**
-```cairo
-fn _only_owner(self: @ContractState)
-fn update_proof_signer(ref self: ContractState, new_signer: felt252)
-fn transfer_ownership(ref self: ContractState, new_owner: ContractAddress)
-```
-- **Owner-only administrative functions**
-- **Secure ownership transfer capability**
-- **Proof signer management**
-- **Event logging for all ownership changes**
+---
 
-### 4. **⏸️ Emergency Pause**
-```cairo
-fn _when_not_paused(self: @ContractState)
-fn pause(ref self: ContractState)
-fn unpause(ref self: ContractState)
-```
-- **Emergency response capability**
-- **Owner-only pause/unpause functions**
-- **Blocks all critical functions when paused**
-- **Event logging for pause state changes**
-- **Critical for security incidents and regulatory compliance**
+## Getting Started
 
-### 5. **Token Transfer Security**
-- **Deposit**: `transfer_from(buyer → contract)` - **Reentrancy & pause protected**
-- **Release**: `transfer(contract → seller)` - **Reentrancy & pause protected**
-- **Refund**: `transfer(contract → buyer)` - **Reentrancy & pause protected**
-- All transfers use standard ERC20 interface
+### Prerequisites
 
-### 6. **Input Validation**
-- Amount validation (must be > 0)
-- Address validation (seller ≠ buyer)
-- Order state validation (correct status transitions)
-- Signature validation (non-zero components)
-- Owner validation for administrative functions
+- [Scarb](https://docs.swmansion.com/scarb/) v2.10.1+
+- [Starkli](https://github.com/xJonathanLEI/starkli) v0.4.0+ for deployment
+- [Starknet Foundry](https://foundry-rs.github.io/starknet-foundry/) for testing
 
-### 7. **State Management**
-- Order status tracking (`Pending`, `Locked`, `Released`, `Refunded`)
-- Time-based expiry validation
-- Event emission for all state changes
-- Pause state management
+### Installation
 
-## 🧪 Testing
-
-The contract includes a comprehensive test suite with **13 passing tests**:
-
-1. **`test_order_status_enum`** - OrderStatus enum functionality
-2. **`test_constants`** - Test constants validation
-3. **`test_array_operations`** - Array operations testing
-4. **`test_u256_operations`** - u256 arithmetic testing
-5. **`test_order_status_transitions`** - Order status transitions
-6. **`test_signature_array`** - Signature array creation
-7. **`test_proof_hash`** - Proof hash creation
-8. **`test_lock_duration`** - Lock duration calculations
-9. **`test_signature_verification`** - Basic signature verification testing
-10. **`test_reentrancy_protection`** - Reentrancy protection testing
-11. **`test_access_control`** - Access control testing
-12. **`test_emergency_pause`** - Emergency pause testing
-13. **`test_enhanced_ecdsa`** - **NEW!** Enhanced ECDSA testing
-
-Run tests with:
 ```bash
-scarb test
+git clone https://github.com/mexicop2p/ERC20-escrow-cairo.git
+cd ERC20-escrow-cairo
+scarb build
 ```
 
-## 📊 Contract State
+### Run Tests
 
-### Storage Variables
-- `orders: Map<felt252, Order>` - Order storage
-- `used_proof: Map<felt252, bool>` - Proof usage tracking
-- `owner: ContractAddress` - Contract owner
-- `proof_signer: felt252` - Authorized signature verifier
-- `_reentrancy_guard: u32` - Reentrancy protection guard
-- `paused: bool` - Emergency pause state
+```bash
+scarb cairo-test
+```
 
-### Events
-- `OrderDeposited` - When tokens are deposited
-- `OrderLocked` - When order is locked
-- `OrderReleased` - When funds are released to seller
-- `OrderRefunded` - When funds are refunded to buyer
-- `OwnershipTransferred` - When ownership changes
-- `ProofSignerUpdated` - When proof signer is updated
-- `Paused` - When contract is paused
-- `Unpaused` - When contract is unpaused
+Expected output: **18 tests passing**
 
-## 🚀 Production Readiness
+### Test Coverage
 
-This contract is **production-ready** with:
+The contract includes comprehensive unit tests covering all critical functionality:
 
-✅ **Enhanced ECDSA signature verification with recovery** ← **NEW!**  
-✅ **Complete token transfer logic**  
-✅ **Comprehensive order management**  
-✅ **Event emission for all state changes**  
-✅ **Input validation and error handling**  
-✅ **Full test coverage (13/13 tests passing)**  
-✅ **Gas-optimized storage using Map**  
-✅ **🔒 Reentrancy Protection**  
-✅ **🛡️ Access Control & Ownership Management**  
-✅ **⏸️ Emergency Pause**  
+| Test | Description |
+|------|-------------|
+| `test_order_status_enum` | Validates OrderStatus enum values (0-4) |
+| `test_five_state_transitions` | Verifies valid state transition paths |
+| `test_lockOrder_duration_constants` | Confirms MIN=300s, MAX=86400s |
+| `test_lockOrder_min_duration_validation` | Rejects duration < 5 minutes |
+| `test_lockOrder_max_duration_validation` | Rejects duration > 24 hours |
+| `test_release_requires_locked_status` | Release only works on Locked orders |
+| `test_buyer_cannot_be_seller` | Prevents self-trading |
+| `test_openDispute_only_locked_orders` | Disputes only on Locked status |
+| `test_resolveDispute_winner_validation` | Winner must be buyer or seller |
+| `test_multi_token_whitelist` | Multiple tokens can be whitelisted |
+| `test_refund_after_lock_expiry` | Lock expiry calculation correctness |
+| `test_message_computation_with_domain` | Domain separation in message hash |
+| `test_signature_array_format` | Signature uses (r, s) components |
+| `test_reentrancy_guard_states` | Guard toggle: 0=unlocked, 1=locked |
+| `test_arbiter_authorization` | Only arbiters can resolve disputes |
+| `test_dispute_resolution_outcomes` | Correct fund distribution on resolution |
+| `test_proof_hash_uniqueness` | Proof hash derived from signature |
+| `test_emergency_pause_states` | Pause functionality validation |
 
-### **🔒 Security Level: VERY HIGH**
-- **Enhanced ECDSA verification**: ✅ **IMPLEMENTED WITH RECOVERY**
-- **Reentrancy attacks**: ✅ **PROTECTED**
-- **Signature verification**: ✅ **ENHANCED WITH RECOVERY**
-- **Token transfer security**: ✅ **SECURED**
-- **State management**: ✅ **VALIDATED**
-- **Access control**: ✅ **IMPLEMENTED**
-- **Emergency response**: ✅ **IMPLEMENTED**
+---
 
-## 🔧 Development
+## Deployment Guide
 
-### Build
+### 1. Build
+
 ```bash
 scarb build
 ```
 
-### Test
+### 2. Declare
+
 ```bash
-scarb test
+starkli declare target/dev/mexicop2p_MexicoP2P.contract_class.json \
+  --rpc <RPC_URL> \
+  --account <ACCOUNT_FILE> \
+  --private-key <PRIVATE_KEY>
 ```
 
-### Deploy
+### 3. Deploy
+
 ```bash
-# Deploy to StarkNet testnet/mainnet
-# See detailed deployment instructions above
+starkli deploy <CLASS_HASH> \
+  <OWNER_ADDRESS> \
+  <PROOF_SIGNER_PUBKEY> \
+  --rpc <RPC_URL> \
+  --account <ACCOUNT_FILE> \
+  --private-key <PRIVATE_KEY>
 ```
 
-## 📝 License
+**Constructor Parameters:**
+- `owner`: Contract owner address (can pause, add tokens, add arbiters)
+- `proof_signer`: Public key for signature verification (from your backend signer)
 
-[MIT License](LICENSE)
+### 4. Configure Tokens
 
-## 🤝 Contributing
+```bash
+# Add USDC
+starkli invoke <CONTRACT> add_allowed_token \
+  0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8
 
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## ⚠️ Important Notes
-
-- **Enhanced ECDSA Verification**: **FULLY IMPLEMENTED** - Includes signature recovery and enhanced validation.
-- **Reentrancy Protection**: **FULLY IMPLEMENTED** - All critical functions are protected against reentrancy attacks.
-- **Access Control**: **FULLY IMPLEMENTED** - All administrative functions are owner-only.
-- **Emergency Pause**: **FULLY IMPLEMENTED** - Contract can be paused in emergency situations.
-- **Gas Optimization**: The contract uses the latest Cairo storage patterns for optimal gas usage.
-- **Security**: All functions include proper validation, state checks, reentrancy protection, and pause checks.
-
-## 🔮 Remaining Production Considerations
-
-For enhanced production readiness, consider implementing:
-
-1. **🧪 Integration Tests** - Comprehensive integration testing with real token transfers
-2. **💰 Fee Mechanism** - Platform sustainability and gas cost recovery
-3. **📈 Gas Optimization** - Further optimization for cost efficiency
-4. **📋 Documentation** - Enhanced documentation and deployment guides
-
-## 🔐 Enhanced ECDSA Verification (IMPLEMENTED)
-
-The contract now includes **enhanced ECDSA verification** with signature recovery:
-
-### **🔍 Why Signature Recovery is Needed:**
-
-1. **🔒 Cryptographic Proof**: Provides mathematical proof that the signature was created by the private key holder
-2. **🛡️ Security Validation**: Prevents signature forgery and validates key ownership
-3. **🌐 Standard Compliance**: Follows ECDSA standard verification process
-4. **🔒 Attack Prevention**: Prevents replay attacks and signature manipulation
-
-### **✅ Implemented Enhanced ECDSA Features:**
-
-**Signature Recovery:**
-```cairo
-fn _recover_public_key(self: @ContractState, message_hash: felt252, r: felt252, s: felt252) -> felt252
+# Add WBTC
+starkli invoke <CONTRACT> add_allowed_token \
+  0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac
 ```
-- **Recovers public key from signature components**
-- **Validates signature authenticity**
-- **Prevents signature forgery**
 
-**Enhanced Validation:**
-```cairo
-fn _verify_signature(self: @ContractState, message_hash: felt252, signature: Array<felt252>) -> bool
+### 5. Add Arbiter(s)
+
+```bash
+starkli invoke <CONTRACT> addArbiter <ARBITER_ADDRESS>
 ```
-- **Multiple security layers**
-- **Signature recovery verification**
-- **Enhanced cryptographic validation**
 
-### **🔒 Security Benefits:**
-- **🔒 Cryptographic Security**: Mathematical proof of signature validity
-- **🌐 Interoperability**: Works with standard ECDSA tools
-- **🔍 Audit Compliance**: Meets security audit requirements
-- **🛡️ Attack Prevention**: Prevents signature forgery and replay attacks
+---
+
+## Integration with MexicoP2P Platform
+
+This contract is designed to work with the [MexicoP2P](https://github.com/mexicop2p/mexicop2p) platform:
+
+### Environment Variables
+
+```env
+# Contract address
+NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS=0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9
+ESCROW_CONTRACT_ADDRESS=0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9
+
+# Signer keys (for backend signature generation)
+ESCROW_SIGNER_PRIVATE_KEY=0x...
+ESCROW_SIGNER_PUBLIC_KEY=0x...
+
+# Arbiter (for dispute resolution)
+ARBITER_ADDRESS=0x...
+```
+
+### Integration Points
+
+| Component | Integration |
+|-----------|-------------|
+| **Frontend** | Calls `deposit`, `lockOrder`, `release`, `refund` via Starknet.js |
+| **Backend** | Validates CEP and generates signatures at `/api/proof-of-payment/verify` |
+| **Database** | Tracks order state in PostgreSQL with Prisma (escrowStatus field) |
+| **Admin Panel** | Manages disputes, views arbiter actions |
+
+---
+
+## Security Audit Resolution
+
+This contract addresses all findings from the [Security Audit Report (Issue #2)](https://github.com/mexicop2p/ERC20-escrow-cairo/issues/2):
+
+| Finding | Severity | Status | Resolution |
+|---------|----------|--------|------------|
+| C-1: Placeholder Signature | Critical | **FIXED** | Implemented real `check_ecdsa_signature()` |
+| C-2: Poseidon vs Keccak256 | Critical | **DOCUMENTED** | Uses Pedersen (Starknet native) |
+| H-1: ERC20 Return Value | High | **FIXED** | Interface defined without bool returns |
+| H-2: Reentrancy Guard | High | **FIXED** | Proper guard implementation |
+| H-3: No Min Lock Duration | High | **FIXED** | `MIN_LOCK_DURATION = 300` (5 min) |
+| M-3: Emergency Pause | Medium | **FIXED** | `pause()` / `unpause()` implemented |
+
+### Additional Security Features Added
+
+- **Dispute Resolution**: On-chain arbiter system for handling conflicts
+- **Multi-Token Whitelist**: Only approved tokens can be deposited
+- **5-State Machine**: Clear state transitions prevent invalid operations
+- **Comprehensive Events**: Full audit trail for all actions
+
+---
+
+## Access Control
+
+| Role | Permissions |
+|------|-------------|
+| **Owner** | Pause/unpause, add/remove tokens, add/remove arbiters, update proof_signer, emergency refund |
+| **Arbiter** | Resolve disputes |
+| **Seller** | Deposit tokens, refund after lock expires |
+| **Buyer** | Lock orders, release with signature, open disputes |
+
+---
+
+## License
+
+MIT
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## Links
+
+- [MexicoP2P Platform](https://github.com/mexicop2p/mexicop2p)
+- [Security Audit Report](https://github.com/mexicop2p/ERC20-escrow-cairo/issues/2)
+- [Starknet Documentation](https://docs.starknet.io/)
+- [Cairo Language](https://www.cairo-lang.org/)
