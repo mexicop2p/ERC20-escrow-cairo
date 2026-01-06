@@ -20,6 +20,12 @@ A secure peer-to-peer escrow smart contract for the Mexican crypto market, built
 | USDC.e (Bridged) | `0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8` | 6 |
 | WBTC | `0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac` | 8 |
 
+### Admin Addresses
+
+| Role | Address |
+|------|---------|
+| Owner / Arbiter | `0x06152df0e70bedbf7c8256f9e26eda77ba8785db3d8b7dc545a62886f618d5c0` |
+
 ---
 
 ## Features
@@ -390,8 +396,8 @@ ESCROW_CONTRACT_ADDRESS=0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf04
 ESCROW_SIGNER_PRIVATE_KEY=0x...
 ESCROW_SIGNER_PUBLIC_KEY=0x...
 
-# Arbiter (for dispute resolution)
-ARBITER_ADDRESS=0x...
+# Arbiter (for dispute resolution) - same as owner
+ARBITER_ADDRESS=0x06152df0e70bedbf7c8256f9e26eda77ba8785db3d8b7dc545a62886f618d5c0
 ```
 
 ### Integration Points
