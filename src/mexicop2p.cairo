@@ -22,23 +22,22 @@ const CONTRACT_VERSION: felt252 = 'v1.0.5';
 
 #[derive(Copy, Drop, Serde, starknet::Store, PartialEq)]
 pub struct Order {
+    pub seller: ContractAddress,  // Seller first (matches old working contract)
     pub buyer: ContractAddress,
-    pub seller: ContractAddress,
     pub token: ContractAddress,
     pub amount: u256,
     pub lock_expiry: u64,
-    pub status: OrderStatus,
+    pub status: u8,  // Using u8 instead of enum for zero-storage compatibility
 }
 
-#[derive(Copy, Drop, Serde, starknet::Store, PartialEq)]
-#[allow(starknet::store_no_default_variant)]
-pub enum OrderStatus {
-    Open,       // 0 - Order created by seller, awaiting buyer lock
-    Locked,     // 1 - Buyer locked, awaiting payment/release
-    Released,   // 2 - Funds released to buyer
-    Refunded,   // 3 - Funds refunded to seller
-    Disputed,   // 4 - Under dispute, awaiting arbiter resolution
-}
+// Order status constants (using u8 instead of enum for zero-storage compatibility)
+// When reading non-existent orders, storage returns 0 which maps to Open
+// Existence is checked via seller.is_zero()
+const ORDER_STATUS_OPEN: u8 = 0;
+const ORDER_STATUS_LOCKED: u8 = 1;
+const ORDER_STATUS_RELEASED: u8 = 2;
+const ORDER_STATUS_REFUNDED: u8 = 3;
+const ORDER_STATUS_DISPUTED: u8 = 4;
 
 // ERC20 interface without bool returns (production-compatible)
 #[starknet::interface]
@@ -55,8 +54,8 @@ trait IMexicoP2P<TContractState> {
     fn deposit(
         ref self: TContractState,
         order_id: felt252,
-        amount: u256,
-        token: ContractAddress
+        token: ContractAddress,
+        amount: u256
     );
 
     fn lockOrder(
@@ -268,8 +267,8 @@ mod MexicoP2P {
         fn deposit(
             ref self: ContractState,
             order_id: felt252,
-            amount: u256,
-            token: ContractAddress
+            token: ContractAddress,
+            amount: u256
         ) {
             // Emergency pause check
             self._when_not_paused();
@@ -294,12 +293,12 @@ mod MexicoP2P {
 
             // Create order with Open status (no lock_expiry yet)
             let new_order = Order {
-                buyer: 0.try_into().unwrap(),
                 seller,
+                buyer: 0.try_into().unwrap(),
                 token,
                 amount,
                 lock_expiry: 0,  // Set when buyer locks
-                status: OrderStatus::Open,
+                status: ORDER_STATUS_OPEN,
             };
             self.orders.write(order_id, new_order);
 
@@ -334,7 +333,7 @@ mod MexicoP2P {
             // Get order
             let order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
-            assert!(order.status == OrderStatus::Open, "Order not open");
+            assert!(order.status == ORDER_STATUS_OPEN, "Order not open");
 
             let buyer = get_caller_address();
             assert!(buyer != order.seller, "Buyer cannot be seller");
@@ -346,12 +345,12 @@ mod MexicoP2P {
 
             // Update order to Locked status
             let locked_order = Order {
-                buyer,
                 seller: order.seller,
+                buyer,
                 token: order.token,
                 amount: order.amount,
                 lock_expiry: expiry,
-                status: OrderStatus::Locked,
+                status: ORDER_STATUS_LOCKED,
             };
             self.orders.write(order_id, locked_order);
 
@@ -382,7 +381,7 @@ mod MexicoP2P {
             // Get order
             let order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
-            assert!(order.status == OrderStatus::Locked, "Order not locked");
+            assert!(order.status == ORDER_STATUS_LOCKED, "Order not locked");
 
             // Generate a unique proof hash from the signature
             let mut proof_st = PedersenTrait::new(0);
@@ -415,12 +414,12 @@ mod MexicoP2P {
 
             // Update order to Released
             let released_order = Order {
-                buyer: order.buyer,
                 seller: order.seller,
+                buyer: order.buyer,
                 token: order.token,
                 amount: order.amount,
                 lock_expiry: order.lock_expiry,
-                status: OrderStatus::Released,
+                status: ORDER_STATUS_RELEASED,
             };
             self.orders.write(order_id, released_order);
 
@@ -453,7 +452,7 @@ mod MexicoP2P {
 
             // Can only refund Open or Locked orders (not Released, Refunded, or Disputed)
             assert!(
-                order.status == OrderStatus::Open || order.status == OrderStatus::Locked,
+                order.status == ORDER_STATUS_OPEN || order.status == ORDER_STATUS_LOCKED,
                 "Cannot refund"
             );
 
@@ -462,7 +461,7 @@ mod MexicoP2P {
             if caller != self.owner.read() {
                 assert!(caller == order.seller, "Only seller or owner");
                 // Seller must wait for lock expiry on Locked orders
-                if order.status == OrderStatus::Locked {
+                if order.status == ORDER_STATUS_LOCKED {
                     assert!(get_block_timestamp() >= order.lock_expiry, "Lock not expired");
                 }
             }
@@ -473,12 +472,12 @@ mod MexicoP2P {
 
             // Update order to Refunded
             let refunded_order = Order {
-                buyer: order.buyer,
                 seller: order.seller,
+                buyer: order.buyer,
                 token: order.token,
                 amount: order.amount,
                 lock_expiry: order.lock_expiry,
-                status: OrderStatus::Refunded,
+                status: ORDER_STATUS_REFUNDED,
             };
             self.orders.write(order_id, refunded_order);
 
@@ -511,7 +510,7 @@ mod MexicoP2P {
             // Get order
             let order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
-            assert!(order.status == OrderStatus::Locked, "Can only dispute locked orders");
+            assert!(order.status == ORDER_STATUS_LOCKED, "Can only dispute locked orders");
 
             // Only buyer or seller can open dispute
             let caller = get_caller_address();
@@ -519,12 +518,12 @@ mod MexicoP2P {
 
             // Update order to Disputed
             let disputed_order = Order {
-                buyer: order.buyer,
                 seller: order.seller,
+                buyer: order.buyer,
                 token: order.token,
                 amount: order.amount,
                 lock_expiry: order.lock_expiry,
-                status: OrderStatus::Disputed,
+                status: ORDER_STATUS_DISPUTED,
             };
             self.orders.write(order_id, disputed_order);
 
@@ -554,7 +553,7 @@ mod MexicoP2P {
             // Get order
             let order = self.orders.read(order_id);
             assert!(!order.seller.is_zero(), "Order not found");
-            assert!(order.status == OrderStatus::Disputed, "Order not disputed");
+            assert!(order.status == ORDER_STATUS_DISPUTED, "Order not disputed");
 
             // Only arbiters can resolve
             let caller = get_caller_address();
@@ -569,14 +568,14 @@ mod MexicoP2P {
 
             // Update order status based on winner
             let final_status = if winner == order.buyer {
-                OrderStatus::Released
+                ORDER_STATUS_RELEASED
             } else {
-                OrderStatus::Refunded
+                ORDER_STATUS_REFUNDED
             };
 
             let resolved_order = Order {
-                buyer: order.buyer,
                 seller: order.seller,
+                buyer: order.buyer,
                 token: order.token,
                 amount: order.amount,
                 lock_expiry: order.lock_expiry,
@@ -753,7 +752,7 @@ mod MexicoP2P {
 
 #[cfg(test)]
 mod tests {
-    use super::OrderStatus;
+    use super::{ORDER_STATUS_OPEN, ORDER_STATUS_LOCKED, ORDER_STATUS_RELEASED, ORDER_STATUS_REFUNDED, ORDER_STATUS_DISPUTED};
     use core::array::ArrayTrait;
     use core::pedersen::PedersenTrait;
     use core::hash::HashStateTrait;
@@ -772,11 +771,11 @@ mod tests {
 
     #[test]
     fn test_order_status_enum() {
-        let open = OrderStatus::Open;
-        let locked = OrderStatus::Locked;
-        let released = OrderStatus::Released;
-        let refunded = OrderStatus::Refunded;
-        let disputed = OrderStatus::Disputed;
+        let open = ORDER_STATUS_OPEN;
+        let locked = ORDER_STATUS_LOCKED;
+        let released = ORDER_STATUS_RELEASED;
+        let refunded = ORDER_STATUS_REFUNDED;
+        let disputed = ORDER_STATUS_DISPUTED;
 
         assert!(open != locked, "Open != Locked");
         assert!(locked != released, "Locked != Released");
@@ -787,11 +786,11 @@ mod tests {
     #[test]
     fn test_five_state_transitions() {
         // Test valid state transition paths
-        let open = OrderStatus::Open;
-        let locked = OrderStatus::Locked;
-        let released = OrderStatus::Released;
-        let refunded = OrderStatus::Refunded;
-        let disputed = OrderStatus::Disputed;
+        let open = ORDER_STATUS_OPEN;
+        let locked = ORDER_STATUS_LOCKED;
+        let released = ORDER_STATUS_RELEASED;
+        let refunded = ORDER_STATUS_REFUNDED;
+        let disputed = ORDER_STATUS_DISPUTED;
 
         // Valid paths:
         // Open -> Locked (buyer locks)
@@ -802,11 +801,11 @@ mod tests {
         // Disputed -> Released (arbiter rules for buyer)
         // Disputed -> Refunded (arbiter rules for seller)
 
-        assert!(open == OrderStatus::Open, "Initial state is Open");
-        assert!(locked == OrderStatus::Locked, "Locked state works");
-        assert!(released == OrderStatus::Released, "Released state works");
-        assert!(refunded == OrderStatus::Refunded, "Refunded state works");
-        assert!(disputed == OrderStatus::Disputed, "Disputed state works");
+        assert!(open == ORDER_STATUS_OPEN, "Initial state is Open");
+        assert!(locked == ORDER_STATUS_LOCKED, "Locked state works");
+        assert!(released == ORDER_STATUS_RELEASED, "Released state works");
+        assert!(refunded == ORDER_STATUS_REFUNDED, "Refunded state works");
+        assert!(disputed == ORDER_STATUS_DISPUTED, "Disputed state works");
     }
 
     #[test]
@@ -843,13 +842,13 @@ mod tests {
     #[test]
     fn test_release_requires_locked_status() {
         // Release should only work on Locked orders
-        let open = OrderStatus::Open;
-        let locked = OrderStatus::Locked;
-        let released = OrderStatus::Released;
+        let open = ORDER_STATUS_OPEN;
+        let locked = ORDER_STATUS_LOCKED;
+        let released = ORDER_STATUS_RELEASED;
 
-        let can_release_open = open == OrderStatus::Locked;
-        let can_release_locked = locked == OrderStatus::Locked;
-        let can_release_released = released == OrderStatus::Locked;
+        let can_release_open = open == ORDER_STATUS_LOCKED;
+        let can_release_locked = locked == ORDER_STATUS_LOCKED;
+        let can_release_released = released == ORDER_STATUS_LOCKED;
 
         assert!(!can_release_open, "Cannot release Open order");
         assert!(can_release_locked, "Can release Locked order");
@@ -867,13 +866,13 @@ mod tests {
 
     #[test]
     fn test_openDispute_only_locked_orders() {
-        let open = OrderStatus::Open;
-        let locked = OrderStatus::Locked;
-        let released = OrderStatus::Released;
+        let open = ORDER_STATUS_OPEN;
+        let locked = ORDER_STATUS_LOCKED;
+        let released = ORDER_STATUS_RELEASED;
 
-        let can_dispute_open = open == OrderStatus::Locked;
-        let can_dispute_locked = locked == OrderStatus::Locked;
-        let can_dispute_released = released == OrderStatus::Locked;
+        let can_dispute_open = open == ORDER_STATUS_LOCKED;
+        let can_dispute_locked = locked == ORDER_STATUS_LOCKED;
+        let can_dispute_released = released == ORDER_STATUS_LOCKED;
 
         assert!(!can_dispute_open, "Cannot dispute Open order");
         assert!(can_dispute_locked, "Can dispute Locked order");
@@ -988,11 +987,11 @@ mod tests {
     fn test_dispute_resolution_outcomes() {
         // When dispute resolved for buyer -> Released
         // When dispute resolved for seller -> Refunded
-        let buyer_wins = OrderStatus::Released;
-        let seller_wins = OrderStatus::Refunded;
+        let buyer_wins = ORDER_STATUS_RELEASED;
+        let seller_wins = ORDER_STATUS_REFUNDED;
 
-        assert!(buyer_wins == OrderStatus::Released, "Buyer wins -> Released");
-        assert!(seller_wins == OrderStatus::Refunded, "Seller wins -> Refunded");
+        assert!(buyer_wins == ORDER_STATUS_RELEASED, "Buyer wins -> Released");
+        assert!(seller_wins == ORDER_STATUS_REFUNDED, "Seller wins -> Refunded");
     }
 
     #[test]

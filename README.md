@@ -3,14 +3,14 @@
 A secure peer-to-peer escrow smart contract for the Mexican crypto market, built on Starknet using Cairo. This contract facilitates trustless SPEI-to-crypto trades with CEP (Comprobante Electronico de Pago) validation.
 
 [![Security Audit](https://img.shields.io/badge/Security-Audited-green)](https://github.com/mexicop2p/ERC20-escrow-cairo/issues/2)
-[![Starknet](https://img.shields.io/badge/Starknet-Mainnet-blue)](https://voyager.online/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9)
+[![Starknet](https://img.shields.io/badge/Starknet-Mainnet-blue)](https://voyager.online/contract/0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf0418c1ec8632)
 [![Cairo](https://img.shields.io/badge/Cairo-2.10.1-orange)](https://www.cairo-lang.org/)
 
 ## Deployment
 
 | Network | Contract Address | Explorer |
 |---------|------------------|----------|
-| **Mainnet** | `0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9` | [Voyager](https://voyager.online/contract/0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9) |
+| **Mainnet** | `0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf0418c1ec8632` | [Voyager](https://voyager.online/contract/0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf0418c1ec8632) |
 
 ### Whitelisted Tokens
 
@@ -199,7 +199,7 @@ A secure peer-to-peer escrow smart contract for the Mexican crypto market, built
 
 ```cairo
 // Seller deposits tokens into escrow (creates order)
-fn deposit(order_id: felt252, amount: u256, token: ContractAddress)
+fn deposit(order_id: felt252, token: ContractAddress, amount: u256)
 
 // Buyer locks an open order (starts the trade timer)
 fn lockOrder(order_id: felt252, duration_seconds: u64)
@@ -383,8 +383,8 @@ This contract is designed to work with the [MexicoP2P](https://github.com/mexico
 
 ```env
 # Contract address
-NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS=0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9
-ESCROW_CONTRACT_ADDRESS=0x04f83026d9f0ea0ece1ddebbfaa475fef77c7ceaebf8637907267f931efb4df9
+NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS=0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf0418c1ec8632
+ESCROW_CONTRACT_ADDRESS=0x021b47dd0cf4a1b9a5d8ca8e04d4b29056146c6938f9604d87cf0418c1ec8632
 
 # Signer keys (for backend signature generation)
 ESCROW_SIGNER_PRIVATE_KEY=0x...
