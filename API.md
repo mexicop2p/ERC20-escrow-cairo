@@ -122,7 +122,7 @@ All webhook payloads are signed with HMAC-SHA256. Delivery is retried up to 5 ti
 
 | Tier | Rate Limit | Volume |
 |------|-----------|--------|
-| Free | 50 req/min | Limited |
+| Free | 50 req/month | Limited |
 | Starter | 200 req/min | Daily cap |
 | Pro | 1,000 req/min | Monthly cap |
 | Enterprise | 5,000 req/min | Unlimited |
