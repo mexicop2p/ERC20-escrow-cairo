@@ -17,7 +17,6 @@ A secure peer-to-peer escrow smart contract for the Mexican crypto market, built
 | Token | Address | Decimals |
 |-------|---------|----------|
 | USDC (Native) | `0x033068F6539f8e6e6b131e6B2B814e6c34A5224bC66947c47DaB9dFeE93b35fb` | 6 |
-| USDC.e (Bridged) | `0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8` | 6 |
 | WBTC | `0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac` | 8 |
 
 ### Admin Addresses
