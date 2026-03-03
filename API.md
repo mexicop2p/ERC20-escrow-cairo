@@ -148,4 +148,4 @@ Your users trade. We handle the compliance.
 
 ## Support
 
-Questions? Reach us at partners@mexicop2p.com
+Questions? Reach me at carlos@diosplan.com
